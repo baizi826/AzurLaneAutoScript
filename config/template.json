@@ -313,6 +313,7 @@
       "CommonCV": "any",
       "ChangeVanguard": "ship",
       "CommonDD": "any",
+      "EquipmentCode": "DD: null\nbogue: null\nhermes: null\nlangley: null\nranger: null",
       "CommissionLimit": true
     },
     "Campaign": {
@@ -343,6 +344,12 @@
       "Fleet2Mode": "combat_auto",
       "Fleet2Step": 2,
       "FleetOrder": "fleet1_all_fleet2_standby"
+    },
+    "Submarine": {
+      "Fleet": 0,
+      "Mode": "do_not_use",
+      "AutoSearchMode": "sub_standby",
+      "DistanceToBoss": "use_open_ocean_support"
     },
     "Storage": {
       "Storage": {}
