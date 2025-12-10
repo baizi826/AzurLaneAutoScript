@@ -2,6 +2,7 @@ from module.campaign.campaign_base import CampaignBase
 from module.campaign.run import CampaignRun
 from module.combat.assets import BATTLE_PREPARATION
 from module.equipment.assets import *
+from module.equipment.equipment_code import EquipmentCodeHandler
 from module.equipment.fleet_equipment import FleetEquipment
 from module.exception import CampaignEnd, ScriptError
 from module.handler.assets import AUTO_SEARCH_MAP_OPTION_OFF
@@ -67,7 +68,46 @@ class GemsCampaignOverride(CampaignBase):
             raise CampaignEnd('Emotion withdraw')
 
 
-class GemsFarming(CampaignRun, FleetEquipment, Dock):
+class GemsEquipmentHandler(EquipmentCodeHandler):
+    def __init__(self, config, device=None, task=None):
+        super().__init__(config=config,
+                         device=device,
+                         task=task,
+                         key="GemsFarming.GemsFarming.EquipmentCode",
+                         ships=['DD', 'bogue', 'hermes', 'langley', 'ranger'])
+
+    def current_ship(self, skip_first_screenshot=True):
+        """
+        Reuse templates in module.retire.assets,
+        which needs different rescaling to match each current flagship.
+
+        Pages:
+            in: gear_code
+        """
+        while 1:
+            if skip_first_screenshot:
+                skip_first_screenshot = False
+            else:
+                self.device.screenshot()
+            
+            # End
+            if not self.appear(EMPTY_SHIP_R):
+                break
+            else:
+                logger.info('Waiting ship icon loading.')
+            
+        if TEMPLATE_BOGUE.match(self.device.image, scaling=1.46):  # image has rotation
+            return 'bogue'
+        if TEMPLATE_HERMES.match(self.device.image, scaling=124/89):
+            return 'hermes'
+        if TEMPLATE_RANGER.match(self.device.image, scaling=4/3):
+            return 'ranger'
+        if TEMPLATE_LANGLEY.match(self.device.image, scaling=25/21):
+            return 'langley'
+        return 'DD'
+
+
+class GemsFarming(CampaignRun, Dock, FleetEquipment, GemsEquipmentHandler):
 
     def load_campaign(self, name, folder='campaign_main'):
         super().load_campaign(name, folder)
@@ -80,8 +120,20 @@ class GemsFarming(CampaignRun, FleetEquipment, Dock):
         self.campaign.config.override(EnemyPriority_EnemyScaleBalanceWeight='S1_enemy_first')
 
     @property
+    def change_flagship(self):
+        return 'ship' in self.config.GemsFarming_ChangeFlagship
+
+    @property
+    def change_flagship_equip(self):
+        return 'equip' in self.config.GemsFarming_ChangeFlagship
+
+    @property
     def change_vanguard(self):
         return 'ship' in self.config.GemsFarming_ChangeVanguard
+
+    @property
+    def change_vanguard_equip(self):
+        return 'equip' in self.config.GemsFarming_ChangeVanguard
 
     @property
     def fleet_to_attack(self):
@@ -92,34 +144,56 @@ class GemsFarming(CampaignRun, FleetEquipment, Dock):
 
     def flagship_change(self):
         """
-        Change flagship and flagship's equipment
-        If config.GemsFarming_CommonCV == 'any', only change auxiliary equipment
+        Change flagship and flagship's equipment using gear code
 
         Returns:
             bool: True if flagship changed.
         """
+
         logger.hr('Change flagship', level=1)
+        logger.attr('ChangeFlagship', self.config.GemsFarming_ChangeFlagship)
         self.fleet_enter(self.fleet_to_attack)
+        if self.change_flagship_equip:
+            logger.hr('Unmount flagship equipments', level=2)
+            self.fleet_enter_ship(FLEET_DETAIL_ENTER_FLAGSHIP)
+            self.clear_all_equip()
+            self.fleet_back()
 
         logger.hr('Change flagship', level=2)
         success = self.flagship_change_execute()
+
+        if self.change_flagship_equip:
+            logger.hr('Mount flagship equipments', level=2)
+            self.fleet_enter_ship(FLEET_DETAIL_ENTER_FLAGSHIP)
+            self.apply_equip_code()
+            self.fleet_back()
 
         return success
 
     def vanguard_change(self):
         """
-        Change vanguard and vanguard's equipment
+        Change vanguard and vanguard's equipment using gear code
 
         Returns:
             bool: True if vanguard changed
         """
-
         logger.hr('Change vanguard', level=1)
         logger.attr('ChangeVanguard', self.config.GemsFarming_ChangeVanguard)
         self.fleet_enter(self.fleet_to_attack)
+        if self.change_vanguard_equip:
+            logger.hr('Unmount vanguard equipments', level=2)
+            self.fleet_enter_ship(FLEET_DETAIL_ENTER)
+            self.clear_all_equip()
+            self.fleet_back()
 
         logger.hr('Change vanguard', level=2)
         success = self.vanguard_change_execute()
+
+        if self.change_vanguard_equip:
+            logger.hr('Mount vanguard equipments', level=2)
+            self.fleet_enter_ship(FLEET_DETAIL_ENTER)
+            self.apply_equip_code()
+            self.fleet_back()
 
         return success
 
@@ -347,7 +421,7 @@ class GemsFarming(CampaignRun, FleetEquipment, Dock):
 
     def triggered_stop_condition(self, oil_check=True):
         # Lv32 limit
-        if self.campaign.config.LV32_TRIGGERED:
+        if self.change_flagship and self.campaign.config.LV32_TRIGGERED:
             self._trigger_lv32 = True
             logger.hr('TRIGGERED LV32 LIMIT')
             return True
@@ -367,7 +441,7 @@ class GemsFarming(CampaignRun, FleetEquipment, Dock):
             mode (str): `normal` or `hard`
             total (int):
         """
-        self.config.override(STOP_IF_REACH_LV32=True)
+        self.config.STOP_IF_REACH_LV32 = self.change_flagship
 
         while 1:
             self._trigger_lv32 = False
@@ -383,7 +457,9 @@ class GemsFarming(CampaignRun, FleetEquipment, Dock):
 
             # End
             if self._trigger_lv32 or self._trigger_emotion:
-                success = self.flagship_change()
+                success = True
+                if self.change_flagship:
+                    success = self.flagship_change()
                 if self.change_vanguard:
                     success = success and self.vanguard_change()
 
