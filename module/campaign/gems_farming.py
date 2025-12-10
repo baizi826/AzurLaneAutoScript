@@ -150,28 +150,22 @@ class GemsFarming(CampaignRun, Dock, FleetEquipment, GemsEquipmentHandler):
             bool: True if flagship changed.
         """
 
-        if self.config.GemsFarming_CommonCV == 'any':
-            index_list = range(3, 5)
-        else:
-            index_list = range(0, 5)
         logger.hr('Change flagship', level=1)
         logger.attr('ChangeFlagship', self.config.GemsFarming_ChangeFlagship)
         self.fleet_enter(self.fleet_to_attack)
         if self.change_flagship_equip:
-            logger.hr('Record flagship equipment', level=2)
+            logger.hr('Unmount flagship equipments', level=2)
             self.fleet_enter_ship(FLEET_DETAIL_ENTER_FLAGSHIP)
-            self.ship_equipment_record_image(index_list=index_list)
-            self.ship_equipment_take_off()
+            self.clear_all_equip()
             self.fleet_back()
 
         logger.hr('Change flagship', level=2)
         success = self.flagship_change_execute()
 
         if self.change_flagship_equip:
-            logger.hr('Equip flagship equipment', level=2)
+            logger.hr('Mount flagship equipments', level=2)
             self.fleet_enter_ship(FLEET_DETAIL_ENTER_FLAGSHIP)
-            self.ship_equipment_take_off()
-            self.ship_equipment_take_on_image(index_list=index_list)
+            self.apply_equip_code()
             self.fleet_back()
 
         return success
@@ -187,20 +181,18 @@ class GemsFarming(CampaignRun, Dock, FleetEquipment, GemsEquipmentHandler):
         logger.attr('ChangeVanguard', self.config.GemsFarming_ChangeVanguard)
         self.fleet_enter(self.fleet_to_attack)
         if self.change_vanguard_equip:
-            logger.hr('Record vanguard equipment', level=2)
+            logger.hr('Unmount vanguard equipments', level=2)
             self.fleet_enter_ship(FLEET_DETAIL_ENTER)
-            self.ship_equipment_record_image()
-            self.ship_equipment_take_off()
+            self.clear_all_equip()
             self.fleet_back()
 
         logger.hr('Change vanguard', level=2)
         success = self.vanguard_change_execute()
 
         if self.change_vanguard_equip:
-            logger.hr('Equip vanguard equipment', level=2)
+            logger.hr('Mount vanguard equipments', level=2)
             self.fleet_enter_ship(FLEET_DETAIL_ENTER)
-            self.ship_equipment_take_off()
-            self.ship_equipment_take_on_image()
+            self.apply_equip_code()
             self.fleet_back()
 
         return success
