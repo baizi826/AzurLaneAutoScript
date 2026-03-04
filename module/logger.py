@@ -2,8 +2,9 @@ import datetime
 import logging
 import os
 import sys
+import shutil
 from typing import Callable, List
-
+from pathlib import Path
 from rich.console import Console, ConsoleOptions, ConsoleRenderable, NewLine
 from rich.highlighter import RegexHighlighter, NullHighlighter
 from rich.logging import RichHandler
@@ -201,6 +202,43 @@ def set_file_logger(name=pyw_name):
     logger.log_file = log_file
 
 
+def clean_old_logs(days=3):
+    """
+    清理 log 目录树中所有修改时间超过指定天数的文件和文件夹
+    :param days: 保留最近多少天的日志，默认为3天
+    """
+    log_root = Path("./log")
+    cutoff_time = datetime.datetime.now().timestamp() - (days * 86400)
+    
+    # 深度优先遍历（先处理深层路径，避免删除父目录后无法访问子目录）
+    # 使用 sorted + reverse=True 确保子文件先于父文件夹被处理
+    try:
+        for item in sorted(
+            log_root.rglob("*"), 
+            key=lambda p: len(p.parts), 
+            reverse=True
+        ):
+            # 跳过不存在的项（可能已被其他进程删除）
+            if not item.exists():
+                continue
+                
+            # 仅处理过期项
+            if item.stat().st_mtime < cutoff_time:
+                try:
+                    if item.is_file():
+                        item.unlink()
+                        logger.info(f"Deleted old log file: {item}")
+                    elif item.is_dir():
+                        shutil.rmtree(item)
+                        logger.info(f"Deleted old log folder: {item}")
+                except Exception:
+                    # 清理不掉就跳过（静默处理单个文件的异常，不中断整体任务）
+                    pass
+    except Exception:
+        # 如果根目录都不存在或无法访问，直接跳过
+        pass
+
+
 def set_func_logger(func):
     console = HTMLConsole(
         force_terminal=False,
@@ -335,4 +373,5 @@ logger.print = print
 logger.log_file: str
 
 logger.set_file_logger()
+clean_old_logs(days=3)
 logger.hr('Start', level=0)
