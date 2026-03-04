@@ -1,0 +1,43 @@
+name: Sync upstream with local commits (10-commit depth)
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # 每小时执行
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 10  # 仅拉取本地仓库的最新10次提交（含当前分支）
+
+      - name: Backup .github
+        run: cp -r .github /tmp/github_backup
+
+      - name: Add upstream
+        run: git remote add upstream https://github.com/LmeSzinc/AzurLaneAutoScript.git
+
+      - name: Fetch upstream (10 commits)
+        run: git fetch upstream master --depth=10  # 仅拉取上游最新10次提交
+
+      - name: Rebase onto upstream
+        run: git rebase upstream/master  # 保留本地提交 + 同步上游最新10次代码
+        # 自动处理冲突（失败时需人工干预）
+
+      - name: Restore .github
+        run: mv /tmp/github_backup .github
+
+      - name: Commit changes
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .github
+            git commit -m "Sync with upstream (10-commit depth) and preserve local commits"
+          else
+            echo "No changes to commit"
+          fi
+
+      - name: Push changes
+        run: git push origin master --force
