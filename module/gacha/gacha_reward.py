@@ -315,18 +315,29 @@ class RewardGacha(GachaUI, Retirement):
             gold_cost = 1500
             cube_cost = 2
 
+        # If configured to build in 'event' pool but the pool is not
+        # available (downgraded to 'light'), only submit 1 order to finish
+        # the daily build mission, instead of wasting resources on the
+        # full 'Gacha_Amount'. Tickets are only handed out while an event
+        # pool is open, so no ticket handling is needed in that case.
+        amount = self.config.Gacha_Amount
+        if self.config.Gacha_Pool == 'event' and actual_pool != 'event':
+            logger.info('Event pool unavailable, submit 1 order '
+                        'in light pool to complete daily mission')
+            amount = 1
+
         # OCR build tickets, decide use cubes/coins or not
         # buy = [rolls_using_tickets, rolls_using_cubes]
-        buy = [self.config.Gacha_Amount, 0]
+        buy = [amount, 0]
         if actual_pool == "event" and self.config.Gacha_UseTicket:
             if self.appear(BUILD_TICKET_CHECK, offset=(30, 30)):
                 self.build_ticket_count = OCR_BUILD_TICKET_COUNT.ocr(self.device.image)
             else:
                 logger.info('Build ticket not detected, use cubes and coins')
-        if self.config.Gacha_Amount > self.build_ticket_count:
+        if amount > self.build_ticket_count:
             buy[0] = self.build_ticket_count
             # Calculate rolls allowed based on configurations and resources
-            buy[1] = self.gacha_calculate(self.config.Gacha_Amount - self.build_ticket_count, gold_cost, cube_cost)
+            buy[1] = self.gacha_calculate(amount - self.build_ticket_count, gold_cost, cube_cost)
 
         # Submit 'buy_count' and execute if capable
         # Cannot use handle_popup_confirm, this window
