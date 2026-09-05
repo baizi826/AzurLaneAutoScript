@@ -1,0 +1,73 @@
+#
+# requirements-conda.txt
+# ------------------------------------------------------------
+# 由同目录 environment.yml(macOS / Python 3.8 / arm64 conda 环境)转化而来。
+# 仅包含 ALAS 运行时所需的【顶层直接依赖】,传递依赖交给 pip 自动解析。
+#
+# 转化规则:
+#   1. environment.yml 中属于 conda 原生/系统级库的部分(ffmpeg / qt-main /
+#      qt-webengine / cairo / mysql / harfbuzz ...)无法用 pip 安装,已剔除;
+#      其中 opencv 用 PyPI 等价包 opencv-python 替代。
+#   2. 版本号取自该 env 实际解析结果(conda 列表 + pip: 段),并已逐一核对
+#      PyPI 上对应版本存在。
+#   3. 若你的 Mac 是 Apple Silicon(arm64),av 与 mxnet 在 PyPI 没有可用 wheel,
+#      见下方对应注释,建议这两项仍用 conda 安装。
+#
+# 安装示例(建议用 Python 3.8 的虚拟环境):
+#   python -m venv .venv
+#   .venv/bin/pip install -r requirements-conda.txt
+# ------------------------------------------------------------
+
+# ---- Image processing ----
+numpy==1.24.4
+scipy==1.10.1
+pillow==10.0.1
+# conda opencv 4.6.0 的 PyPI 等价包(abi3 轮子,cp38 / macOS arm64 均可用)
+opencv-python==4.6.0.66
+imageio==2.27.0
+
+# ---- Device connection ----
+adbutils==0.11.0
+uiautomator2==2.16.17
+uiautomator2cache==0.3.0.1
+wrapt==1.13.1
+retrying==1.3.3
+lz4==4.3.2
+# 注意:av 在 Apple Silicon 上无 PyPI wheel(cp38 亦无)。
+#   Intel Mac 可直接 pip 安装;arm64 请改用 conda:
+#     conda install -c conda-forge av=10.0.0
+av==10.0.0
+psutil==5.9.3
+
+# ---- Utils ----
+rich==11.2.0
+tqdm==4.65.0
+jellyfish==0.11.2
+PyYAML==6.0.1
+inflection==0.5.1
+pydantic==1.10.12
+aiofiles==22.1.0
+prettytable==2.2.1
+anyio==1.3.1
+
+# ---- Pushing ----
+onepush==1.3.0
+pycryptodome==3.20.0
+pypresence==4.2.1
+
+# ---- OCR (识别/自动退役/名字识别等) ----
+cnocr==1.2.3
+# 注意:mxnet 在 Apple Silicon 上无 PyPI wheel(1.6.0 仅有 x86_64 macOS / cp38 轮子)。
+#   需要 OCR 时请在 conda 里装:
+#     conda install -c conda-forge mxnet=1.5.1
+#   若用不到 OCR,可将本组(含 cnocr)整段注释,以跳过 mxnet 依赖。
+
+# ---- WebUI ----
+pywebio==1.6.2
+starlette==0.14.2
+# 原 env 中 uvicorn 经 conda 安装(无 [standard] 额外依赖);
+# 保持纯 uvicorn 可避免 httptools 等在 arm64 上无 wheel 的问题。
+uvicorn==0.17.6
+alas-webapp==0.3.7.0
+zerorpc==0.6.3
+pyzmq==22.3.0
